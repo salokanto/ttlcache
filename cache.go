@@ -280,6 +280,49 @@ func (c *Cache[K, V]) Get(key K, opts ...Option[K, V]) *Item[K, V] {
 	return elem.Value.(*Item[K, V])
 }
 
+// GetOrSet returns the existing value for the key if present.
+// Otherwise, it sets and returns the given value. The retrieved
+// result is true if the value was retrieved, false if set.
+func (c *Cache[K, V]) GetOrSet(key K, value V, ttl time.Duration) (*Item[K, V], bool) {
+	c.items.mu.Lock()
+	defer c.items.mu.Unlock()
+
+	elem := c.get(key, false)
+	if elem != nil {
+		return elem.Value.(*Item[K, V]), true
+	}
+
+	return c.set(key, value, ttl), false
+}
+
+func (c *Cache[K, V]) GetOrProvide(key K, provider func() V, ttl time.Duration) (*Item[K, V], bool) {
+	c.items.mu.Lock()
+	defer c.items.mu.Unlock()
+
+	elem := c.get(key, false)
+	if elem != nil {
+		return elem.Value.(*Item[K, V]), true
+	}
+
+	return c.set(key, provider(), ttl), false
+}
+
+// GetAndDelete deletes the value for a key, returning the previous
+// value if any. The retrieved result reports whether the key was present.
+func (c *Cache[K, V]) GetAndDelete(key K) (*Item[K, V], bool) {
+	c.items.mu.Lock()
+	defer c.items.mu.Unlock()
+
+	elem := c.get(key, false)
+	if elem == nil {
+		return nil, false
+	}
+
+	c.evict(EvictionReasonDeleted, elem)
+
+	return elem.Value.(*Item[K, V]), true
+}
+
 // Delete deletes an item from the cache. If the item associated with
 // the key is not found, the method is no-op.
 func (c *Cache[K, V]) Delete(key K) {
