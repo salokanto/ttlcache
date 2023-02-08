@@ -295,7 +295,7 @@ func (c *Cache[K, V]) GetOrSet(key K, value V, ttl time.Duration) (*Item[K, V], 
 	return c.set(key, value, ttl), false
 }
 
-func (c *Cache[K, V]) GetOrProvide(key K, provider func() V, ttl time.Duration) (*Item[K, V], bool) {
+func (c *Cache[K, V]) GetOrProvide(key K, provider func(key K) V, ttl time.Duration) (*Item[K, V], bool) {
 	c.items.mu.Lock()
 	defer c.items.mu.Unlock()
 
@@ -304,7 +304,7 @@ func (c *Cache[K, V]) GetOrProvide(key K, provider func() V, ttl time.Duration) 
 		return elem.Value.(*Item[K, V]), true
 	}
 
-	return c.set(key, provider(), ttl), false
+	return c.set(key, provider(key), ttl), false
 }
 
 // GetAndDelete deletes the value for a key, returning the previous
